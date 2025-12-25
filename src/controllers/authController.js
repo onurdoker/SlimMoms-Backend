@@ -30,7 +30,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// Login
+// Login // 
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
