@@ -1,61 +1,99 @@
-import User from "../db/models/User.js";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import User from '../db/models/User.js';
+import { Session } from '../db/models/session.js';
+import jwt from 'jsonwebtoken';
+import createError from 'http-errors';
 
-// Register
-export const registerUser = async (req, res) => {
+const createSession = async (userId) => {
+  await Session.deleteOne({ userId });
+  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET || 'secret', {
+    expiresIn: '15m',
+  });
+  const refreshToken = jwt.sign(
+    { userId },
+    process.env.JWT_SECRET || 'secret',
+    { expiresIn: '30d' },
+  );
+
+  return await Session.create({
+    userId,
+    accessToken,
+    refreshToken,
+    accessTokenValidUntil: new Date(Date.now() + 15 * 60 * 1000),
+    refreshTokenValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+};
+
+export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
-
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await User.create({ name, email, password: hashedPassword });
-
-    const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-    );
-
-    res.status(201).json({
-      user: { id: newUser._id, name: newUser.name, email: newUser.email }, token,
-      message: "Registration successful"});
-  
+    if (existingUser) throw createError(409, 'User already exists');
+    await User.create({ name, email, password });
+    res.status(201).json({ status: 201, message: 'Registration successful' });
   } catch (err) {
-    console.error("Register Error:", err);
-    res.status(500).json({ message: "Server Error", error: err.message });
+    next(err);
   }
 };
 
-// Login // 
-export const loginUser = async (req, res) => {
+export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-    );
-
-    res.json({ user: { id: user._id, name: user.name, email: user.email }, token, message: "Login successful" });
-  
+    if (!user || !(await user.comparePassword(password)))
+      throw createError(401, 'Invalid credentials');
+    const session = await createSession(user._id);
+    res.json({
+      status: 200,
+      data: {
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      },
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
+    next(err);
   }
 };
 
-export const logoutUser = (req, res) => {
-  res.json({ message: "Logout successful"});
+export const refreshTokens = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    const session = await Session.findOne({
+      refreshToken,
+      refreshTokenValidUntil: { $gt: new Date() },
+    });
+    if (!session) throw createError(401, 'Session expired');
+    const newSession = await createSession(session.userId);
+    res.json({
+      status: 200,
+      data: {
+        accessToken: newSession.accessToken,
+        refreshToken: newSession.refreshToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
+export const getDailyData = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+    const start = new Date(date);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+    const data = await User.find({ createdAt: { $gte: start, $lte: end } });
+    res.json({ status: 200, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const logoutUser = async (req, res, next) => {
+  try {
+    if (req.body.refreshToken)
+      await Session.deleteOne({ refreshToken: req.body.refreshToken });
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
