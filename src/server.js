@@ -2,8 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import swaggerUi from 'swagger-ui-express';
-import fs from 'fs';
 import authRouter from './routers/auth.js';
 
 dotenv.config();
@@ -18,12 +16,9 @@ if (!MONGODB_USER || !MONGODB_PASSWORD || !MONGODB_URL || !MONGODB_DB) {
   process.exit(1);
 }
 
-const swaggerDocument = JSON.parse(fs.readFileSync('./swagger.json', 'utf-8'));
-
 app.use(cors());
 app.use(express.json());
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/api/auth', authRouter);
 
 const mongoUri = `mongodb+srv://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_URL}/${MONGODB_DB}?retryWrites=true&w=majority`;
