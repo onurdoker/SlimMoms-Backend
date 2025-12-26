@@ -6,6 +6,15 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    userData: {
+      height: { type: Number },
+      age: { type: Number },
+      currentWeight: { type: Number },
+      desiredWeight: { type: Number },
+      bloodType: { type: Number },
+      dailyRate: { type: Number },
+      notAllowedProducts: { type: [String] },
+    },
   },
   {
     timestamps: true,
