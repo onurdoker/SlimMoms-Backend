@@ -1,4 +1,6 @@
-import { Schema, model } from 'mongoose';
+import mongoose from 'mongoose';
+
+const { Schema, model } = mongoose;
 
 const sessionSchema = new Schema(
   {
@@ -11,4 +13,5 @@ const sessionSchema = new Schema(
   { timestamps: true, versionKey: false },
 );
 
-export const Session = model('Session', sessionSchema);
+export const Session =
+  mongoose.models.Session || model('Session', sessionSchema);

@@ -1,5 +1,5 @@
 import User from '../db/models/User.js';
-import { Session } from '../db/models/session.js';
+import { Session } from '../db/models/Session.js';
 import jwt from 'jsonwebtoken';
 import createError from 'http-errors';
 

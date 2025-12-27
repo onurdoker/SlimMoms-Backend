@@ -7,13 +7,13 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     userData: {
-      height: { type: Number },
-      age: { type: Number },
-      currentWeight: { type: Number },
-      desiredWeight: { type: Number },
-      bloodType: { type: Number },
-      dailyRate: { type: Number },
-      notAllowedProducts: { type: [String] },
+      height: { type: Number, default: null },
+      age: { type: Number, default: null },
+      currentWeight: { type: Number, default: null },
+      desiredWeight: { type: Number, default: null },
+      bloodType: { type: Number, default: null },
+      dailyRate: { type: Number, default: null },
+      notAllowedProducts: { type: [String], default: [] },
     },
   },
   {
@@ -22,13 +22,17 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
+userSchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  delete obj.password;
+  return obj;
+};
 
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) {
+    return;
+  }
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {

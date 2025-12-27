@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { Session } from '../db/models/session.js';
+import { Session } from '../db/models/Session.js';
 import User from '../db/models/User.js';
 import createError from 'http-errors';
 
@@ -14,7 +14,7 @@ const authenticate = async (req, res, next) => {
 
     // Token'ı verify et
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    
+
     // Session'ı kontrol et
     const session = await Session.findOne({
       userId: decoded.userId,
@@ -36,7 +36,10 @@ const authenticate = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError'
+    ) {
       next(createError(401, 'Not authorized'));
     } else {
       next(error);
@@ -45,4 +48,3 @@ const authenticate = async (req, res, next) => {
 };
 
 export default authenticate;
-
